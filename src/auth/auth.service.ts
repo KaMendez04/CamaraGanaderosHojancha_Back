@@ -33,8 +33,13 @@ export class AuthService {
   /**
    * Login: valida credenciales y devuelve { user, token }
    */
-  async login({ email, password }: LoginAuthDto) {
-    // Si en tu entidad User tienes password con select:false, añadimos el campo explícitamente:
+  async login(loginAuth: LoginAuthDto) {
+    if (!loginAuth) {
+      throw new UnauthorizedException('Body vacío o inválido');
+    }
+
+    const { email, password } = loginAuth;
+
     const user = await this.userRepo
       .createQueryBuilder('u')
       .leftJoinAndSelect('u.role', 'role')
@@ -47,7 +52,7 @@ export class AuthService {
     }
 
     if (!user.isActive) {
-    throw new UnauthorizedException('Usuario desactivado');
+      throw new UnauthorizedException('Usuario desactivado');
     }
 
     const isValid = await compare(password, user.password);
@@ -63,7 +68,6 @@ export class AuthService {
 
     const token = await this.jwtService.signAsync(payload);
 
-    // Sanitizar para no devolver el hash:
     const { password: _removed, ...safeUser } = user;
 
     return {
