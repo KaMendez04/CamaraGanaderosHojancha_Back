@@ -353,9 +353,9 @@ private addHeader(doc: PDFDoc, title: string) {
   const right = doc.page.width - 50;
 
   const topY = 32;
-  const logoW = 54;
-  const logoH = 34;
-  const gap = 12;
+  const logoW = 70;
+  const logoH = 42;
+  const gap = 0;
 
   let textX = left;
 

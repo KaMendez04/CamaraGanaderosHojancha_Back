@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import PDFDocument from 'pdfkit'
-
-import https from 'https'
+import { LogoHelper } from '../../../anualBudget/reportUtils/logo-helper'
 import { VoluntarioIndividual } from 'src/formVolunteers/voluntario-individual/entities/voluntario-individual.entity'
 import { Organizacion } from 'src/formVolunteers/organizacion/entities/organizacion.entity'
 
@@ -32,9 +31,6 @@ export class VoluntarioPdfService {
       inactive: { bg: '#FDE8E8', text: '#9B1C1C', border: '#F98080' },
     },
   }
-
-  private readonly LOGO_URL =
-    'https://res.cloudinary.com/dyigmavwq/image/upload/v1772546487/jty2ciomldqixzoeh7h0.jpg'
 
   private readonly FOOTER_SPACE = 22
 
@@ -85,19 +81,6 @@ export class VoluntarioPdfService {
     return s.length ? s : '—'
   }
 
-  private async downloadLogo(): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      https
-        .get(this.LOGO_URL, (response) => {
-          const chunks: Buffer[] = []
-          response.on('data', (chunk) => chunks.push(chunk))
-          response.on('end', () => resolve(Buffer.concat(chunks)))
-          response.on('error', reject)
-        })
-        .on('error', reject)
-    })
-  }
-
   private bottom(doc: PDFDoc) {
     return doc.page.height - doc.page.margins.bottom - this.FOOTER_SPACE
   }
@@ -106,7 +89,7 @@ export class VoluntarioPdfService {
     if (doc.y + neededH > this.bottom(doc)) doc.addPage()
   }
 
-  // ✅ Header corregido: badge + tipo sin montarse
+  // Header corregido: badge + tipo sin montarse
   private addHeader(
     doc: PDFDoc,
     title: string,
@@ -119,8 +102,9 @@ export class VoluntarioPdfService {
     const right = doc.page.width - 50
 
     const headerTop = 32
-    const logoW = 62
-    const gap = 2
+    const logoW = 70
+    const logoH = 42
+    const gap = 0
 
     const rightBlockW = 150
     const rightBlockX = right - rightBlockW
@@ -130,14 +114,17 @@ export class VoluntarioPdfService {
     const textBlockH = 10 + 18
 
     const logoX = left
-    const logoY = headerTop + (textBlockH - logoW) / 8 + 10
+    const logoY = headerTop
     const textX = logoBuffer ? logoX + logoW + gap : left
 
     if (logoBuffer) {
       try {
-        doc.image(logoBuffer, logoX, logoY, { width: logoW })
+        doc.image(logoBuffer, logoX, logoY, {
+          fit: [logoW, logoH],
+          valign: 'center',
+        })
       } catch (error) {
-        console.warn('No se pudo agregar el logo:', error)
+        // mantener silencioso
       }
     }
 
@@ -540,9 +527,9 @@ export class VoluntarioPdfService {
     return new Promise(async (resolve, reject) => {
       let logoBuffer: Buffer | undefined
       try {
-        logoBuffer = await this.downloadLogo()
+        logoBuffer = await LogoHelper.getLogo() || undefined
       } catch (error) {
-        console.warn('⚠️ No se pudo descargar el logo:', error)
+        // mantener silencioso
       }
 
       const doc = new PDFDocument({ size: 'LETTER', margin: 50 })
@@ -675,9 +662,9 @@ doc.y = this.drawFieldRow(doc, 'Experiencia', this.asText(voluntario.experiencia
     return new Promise(async (resolve, reject) => {
       let logoBuffer: Buffer | undefined
       try {
-        logoBuffer = await this.downloadLogo()
+        logoBuffer = await LogoHelper.getLogo() || undefined
       } catch (error) {
-        console.warn('⚠️ No se pudo descargar el logo:', error)
+        // mantener silencioso
       }
 
       const doc = new PDFDocument({ size: 'LETTER', margin: 50 })

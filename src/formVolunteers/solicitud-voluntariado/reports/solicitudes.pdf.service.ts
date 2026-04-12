@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import PDFDocument from 'pdfkit'
-import https from 'https'
+import { LogoHelper } from '../../../anualBudget/reportUtils/logo-helper'
 
 type PDFDoc = InstanceType<typeof PDFDocument>
 
@@ -28,9 +28,6 @@ export class SolicitudesVoluntariadoPdfService {
     },
   }
 
-  private readonly LOGO_URL =
-    'https://res.cloudinary.com/dyigmavwq/image/upload/v1772546487/jty2ciomldqixzoeh7h0.jpg'
-
   private readonly FOOTER_SPACE = 22
 
   private safeDateCR(d?: any) {
@@ -46,19 +43,6 @@ export class SolicitudesVoluntariadoPdfService {
     return s.length ? s : '—'
   }
 
-  private async downloadLogo(): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      https
-        .get(this.LOGO_URL, (response) => {
-          const chunks: Buffer[] = []
-          response.on('data', (chunk) => chunks.push(chunk))
-          response.on('end', () => resolve(Buffer.concat(chunks)))
-          response.on('error', reject)
-        })
-        .on('error', reject)
-    })
-  }
-
   private bottom(doc: PDFDoc) {
     return doc.page.height - doc.page.margins.bottom - this.FOOTER_SPACE
   }
@@ -68,21 +52,24 @@ export class SolicitudesVoluntariadoPdfService {
     const right = doc.page.width - 50;
 
     const headerTop = 32;
-
-    const logoW = 62;
-    const gap = 2;
+    const logoW = 70;
+    const logoH = 42;
+    const gap = 0;
 
     const titleY = headerTop + 6;
     const subY = titleY + 18;
     const textBlockH = 10 + 18;
 
     const logoX = left;
-    const logoY = headerTop + (textBlockH - logoW) / 8 + 10;
+    const logoY = headerTop;
     const textX = logo ? logoX + logoW + gap : left;
 
     if (logo) {
       try {
-        doc.image(logo, logoX, logoY, { width: logoW });
+        doc.image(logo, logoX, logoY, {
+          fit: [logoW, logoH],
+          valign: 'center',
+        });
       } catch {}
     }
 
@@ -347,7 +334,7 @@ export class SolicitudesVoluntariadoPdfService {
     return new Promise(async (resolve, reject) => {
       let logoBuffer: Buffer | undefined
       try {
-        logoBuffer = await this.downloadLogo()
+        logoBuffer = await LogoHelper.getLogo() || undefined
       } catch {}
 
       // ✅ PDF más ancho

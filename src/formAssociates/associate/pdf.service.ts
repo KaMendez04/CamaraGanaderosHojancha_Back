@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import PDFDocument from 'pdfkit'
-import https from 'https'
+import { LogoHelper } from '../../anualBudget/reportUtils/logo-helper'
 
 type PDFDoc = InstanceType<typeof PDFDocument>
 
@@ -20,9 +20,6 @@ export class AssociatePdfService {
     },
   }
 
-  private readonly LOGO_URL =
-    'https://res.cloudinary.com/dyigmavwq/image/upload/v1772546487/jty2ciomldqixzoeh7h0.jpg'
-
   private readonly FOOTER_SPACE = 22
 
   private safeDate(d?: any) {
@@ -34,19 +31,6 @@ export class AssociatePdfService {
       month: '2-digit',
       year: 'numeric',
       timeZone: 'America/Costa_Rica',
-    })
-  }
-
-  private async downloadLogo(): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      https
-        .get(this.LOGO_URL, (response) => {
-          const chunks: Buffer[] = []
-          response.on('data', (chunk) => chunks.push(chunk))
-          response.on('end', () => resolve(Buffer.concat(chunks)))
-          response.on('error', reject)
-        })
-        .on('error', reject)
     })
   }
 
@@ -87,20 +71,24 @@ export class AssociatePdfService {
     const right = doc.page.width - 50
 
     const headerTop = 32
-    const logoW = 62
-    const gap = 2
+    const logoW = 70
+    const logoH = 42
+    const gap = 0
 
     const titleY = headerTop + 6
     const subY = titleY + 18
     const textBlockH = 10 + 18
 
     const logoX = left
-    const logoY = headerTop + (textBlockH - logoW) / 8 + 10
+    const logoY = headerTop
     const textX = logoBuffer ? logoX + logoW + gap : left
 
     if (logoBuffer) {
       try {
-        doc.image(logoBuffer, logoX, logoY, { width: logoW })
+        doc.image(logoBuffer, logoX, logoY, {
+          fit: [logoW, logoH],
+          valign: 'center',
+        })
       } catch (e) {
         console.warn('No se pudo agregar el logo:', e)
       }
@@ -269,9 +257,10 @@ export class AssociatePdfService {
     return new Promise(async (resolve, reject) => {
       let logoBuffer: Buffer | undefined
       try {
-        logoBuffer = await this.downloadLogo()
+        LogoHelper.clearCache()
+        logoBuffer = await LogoHelper.getLogo() || undefined
       } catch (e) {
-        console.warn('⚠️ No se pudo descargar el logo:', e)
+        // mantener silencioso
       }
 
       const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 50 })

@@ -42,9 +42,9 @@ export class UsersController {
   @Public()
   create(
     @Body() dto: CreateUserDto,
-    @CurrentUser() user: CurrentUserData,
+    @CurrentUser() user?: CurrentUserData,
   ) {
-    return this.usersService.createUser(dto, user.id);
+    return this.usersService.createUser(dto, user?.id || null);
   }
 
   @Patch(":id")

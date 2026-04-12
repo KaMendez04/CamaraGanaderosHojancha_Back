@@ -22,5 +22,6 @@ import { EncoderService } from './encoder.service';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, EncoderService],
+  exports: [EncoderService],
 })
 export class AuthModule {}

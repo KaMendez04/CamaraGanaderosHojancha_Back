@@ -1,40 +1,36 @@
 import { Injectable } from '@nestjs/common'
 import PDFDocument from 'pdfkit'
-import https from 'https'
+import { LogoHelper } from '../anualBudget/reportUtils/logo-helper'
 
 type PDFDoc = InstanceType<typeof PDFDocument>
 
 @Injectable()
 export class PersonalPdfService {
-  // ✅ MISMO estilo que el de associates (solo agrego "field" para suavizar)
   private readonly UI = {
     ink: '#33361D',
     gray: '#666',
     line: '#EAEFE0',
     table: {
-      headerBg: '#F9FAFB',
+      headerBg: '#F8F9F3',
       row: '#FFFFFF',
       rowAlt: '#FAFAFA',
-      headerText: '#666',
+      headerText: '#5B732E',
       text: '#33361D',
     },
     field: {
-      bg: '#F9FAFB',     // fondo suave del campo
-      border: '#EAEFE0', // borde suave
-      label: '#6B7280',  // label grisito
-      value: '#33361D',  // valor fuerte
+      bg: '#F9FAFB',
+      border: '#EAEFE0',
+      label: '#6B7280',
+      value: '#33361D',
     },
   }
-
-  private readonly LOGO_URL =
-    'https://res.cloudinary.com/dyigmavwq/image/upload/v1772546487/jty2ciomldqixzoeh7h0.jpg'
 
   private readonly FOOTER_SPACE = 22
 
   private safeDate(d?: any) {
-    if (!d) return '—'
+    if (!d) return '---'
     const dt = new Date(d)
-    if (isNaN(+dt)) return String(d)
+    if (isNaN(+dt)) return '---'
     return dt.toLocaleDateString('es-CR', {
       day: '2-digit',
       month: '2-digit',
@@ -43,40 +39,31 @@ export class PersonalPdfService {
     })
   }
 
-  private async downloadLogo(): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      https
-        .get(this.LOGO_URL, (response) => {
-          const chunks: Buffer[] = []
-          response.on('data', (chunk) => chunks.push(chunk))
-          response.on('end', () => resolve(Buffer.concat(chunks)))
-          response.on('error', reject)
-        })
-        .on('error', reject)
-    })
-  }
-
   private addHeader(doc: PDFDoc, title: string, logoBuffer?: Buffer) {
     const left = 50
     const right = doc.page.width - 50
 
     const headerTop = 32
-    const logoW = 62
-    const gap = 2
+    const logoW = 70
+    const logoH = 42
+    const gap = 0
 
     const titleY = headerTop + 6
     const subY = titleY + 18
     const textBlockH = 10 + 18
 
     const logoX = left
-    const logoY = headerTop + (textBlockH - logoW) / 8 + 10
+    const logoY = headerTop
     const textX = logoBuffer ? logoX + logoW + gap : left
 
     if (logoBuffer) {
       try {
-        doc.image(logoBuffer, logoX, logoY, { width: logoW })
+        doc.image(logoBuffer, logoX, logoY, {
+          fit: [logoW, logoH],
+          valign: 'center',
+        })
       } catch (e) {
-        console.warn('No se pudo agregar el logo:', e)
+        // mantener silencioso
       }
     }
 
@@ -129,13 +116,6 @@ export class PersonalPdfService {
     doc.moveDown(0.5)
   }
 
-  /**
-   * ✅ CAMBIO PRINCIPAL:
-   * Campo "suave" tipo tarjeta:
-   * - etiqueta pequeña gris
-   * - valor más oscuro y semi-bold
-   * - fondo claro + borde + radius
-   */
   private drawFieldRow(
     doc: PDFDoc,
     label: string,
@@ -143,7 +123,7 @@ export class PersonalPdfService {
     x: number,
     y: number,
     w: number,
-  ) {
+  ): number {
     const padX = 10
     const padTop = 8
     const padBottom = 10
@@ -152,9 +132,8 @@ export class PersonalPdfService {
     const labelSize = 8
     const valueSize = 10
 
-    const display = value?.trim() ? value.trim() : '—'
+    const display = value?.trim() ? value.trim() : '---'
 
-    // medir alturas reales según wrapping
     doc.font('Helvetica').fontSize(labelSize)
     const labelH = doc.heightOfString(label.toUpperCase(), { width: w - padX * 2 })
 
@@ -163,7 +142,6 @@ export class PersonalPdfService {
 
     const cardH = padTop + labelH + labelGap + valueH + padBottom
 
-    // tarjeta (fondo + borde + radius)
     doc
       .roundedRect(x, y, w, cardH, 10)
       .fillColor(this.UI.field.bg)
@@ -171,14 +149,12 @@ export class PersonalPdfService {
       .lineWidth(1)
       .fillAndStroke()
 
-    // label
     doc.font('Helvetica').fontSize(labelSize).fillColor(this.UI.field.label)
     doc.text(label.toUpperCase(), x + padX, y + padTop, {
       width: w - padX * 2,
       align: 'left',
     })
 
-    // value (semi-bold)
     const valY = y + padTop + labelH + labelGap
     doc.font('Helvetica-Bold').fontSize(valueSize).fillColor(this.UI.field.value)
     doc.text(display, x + padX, valY, {
@@ -186,7 +162,6 @@ export class PersonalPdfService {
       align: 'left',
     })
 
-    // espacio entre campos
     return y + cardH + 10
   }
 
@@ -195,12 +170,12 @@ export class PersonalPdfService {
     const lastname1 = person?.lastname1 ?? person?.apellido1 ?? ''
     const lastname2 = person?.lastname2 ?? person?.apellido2 ?? ''
 
-    const IDE = person?.IDE ?? person?.cedula ?? person?.identificacion ?? '—'
-    const phone = person?.phone ?? person?.telefono ?? '—'
-    const email = person?.email ?? '—'
-    const direction = person?.direction ?? person?.direccion ?? '—'
+    const IDE = person?.IDE ?? person?.cedula ?? person?.identificacion ?? '---'
+    const phone = person?.phone ?? person?.telefono ?? '---'
+    const email = person?.email ?? '---'
+    const direction = person?.direction ?? person?.direccion ?? '---'
 
-    const occupation = person?.occupation ?? person?.puesto ?? '—'
+    const occupation = person?.occupation ?? person?.puesto ?? '---'
 
     const isActive =
       typeof person?.isActive === 'boolean'
@@ -213,7 +188,7 @@ export class PersonalPdfService {
       typeof person?.estado === 'string'
         ? person.estado
         : isActive === undefined
-          ? '—'
+          ? '---'
           : isActive
             ? 'Activo'
             : 'Inactivo'
@@ -222,7 +197,7 @@ export class PersonalPdfService {
     const startWorkDate = person?.startWorkDate ?? person?.fechaInicioLaboral ?? null
     const endWorkDate = person?.endWorkDate ?? person?.fechaSalida ?? null
 
-    const fullName = `${name} ${lastname1} ${lastname2}`.trim() || '—'
+    const fullName = `${name} ${lastname1} ${lastname2}`.trim() || '---'
 
     return {
       fullName,
@@ -242,102 +217,6 @@ export class PersonalPdfService {
     }
   }
 
-  // ==========================================================
-  // ✅ PDF INDIVIDUAL
-  // ==========================================================
-  async generatePersonalPDF(opts: { person: any }): Promise<Buffer> {
-    return new Promise(async (resolve, reject) => {
-      let logoBuffer: Buffer | undefined
-      try {
-        logoBuffer = await this.downloadLogo()
-      } catch (e) {
-        console.warn('⚠️ No se pudo descargar el logo:', e)
-      }
-
-      const doc = new PDFDocument({ size: 'A4', layout: 'portrait', margin: 50 })
-      const chunks: Buffer[] = []
-
-      doc.on('data', (c) => chunks.push(c as Buffer))
-      doc.on('end', () => resolve(Buffer.concat(chunks)))
-      doc.on('error', reject)
-
-      const p = this.normalize(opts.person)
-
-      this.addHeader(doc, 'Información del Personal', logoBuffer)
-
-      this.addSectionTitle(doc, '1. INFORMACIÓN PERSONAL')
-
-      const left = 50
-      const right = doc.page.width - 50
-      const avail = right - left
-      const colGap = 18
-      const colW = Math.floor((avail - colGap) / 2)
-
-      // Nombre completo (full)
-      doc.y = this.drawFieldRow(doc, 'Nombre completo', p.fullName, left, doc.y, avail)
-
-      // Cédula / Fecha nacimiento
-      const y1 = doc.y
-      const yA = this.drawFieldRow(doc, 'Cédula', String(p.IDE ?? '—'), left, y1, colW)
-      const yB = this.drawFieldRow(
-        doc,
-        'Fecha de nacimiento',
-        this.safeDate(p.birthDate),
-        left + colW + colGap,
-        y1,
-        colW,
-      )
-      doc.y = Math.max(yA, yB)
-
-      // Teléfono / Email
-      const y2 = doc.y
-      const yC = this.drawFieldRow(doc, 'Teléfono', String(p.phone ?? '—'), left, y2, colW)
-      const yD = this.drawFieldRow(
-        doc,
-        'Correo electrónico',
-        String(p.email ?? '—'),
-        left + colW + colGap,
-        y2,
-        colW,
-      )
-      doc.y = Math.max(yC, yD)
-
-      // Dirección (full)
-      doc.y = this.drawFieldRow(doc, 'Dirección', String(p.direction ?? '—'), left, doc.y, avail)
-
-      doc.moveDown(0.4)
-
-      this.addSectionTitle(doc, '2. INFORMACIÓN LABORAL')
-
-      // Puesto (full)
-      doc.y = this.drawFieldRow(doc, 'Puesto', String(p.occupation ?? '—'), left, doc.y, avail)
-
-      // Estado / Fecha inicio
-      const y3 = doc.y
-      const yE = this.drawFieldRow(doc, 'Estado', String(p.estadoTexto ?? '—'), left, y3, colW)
-      const yF = this.drawFieldRow(
-        doc,
-        'Fecha de inicio laboral',
-        this.safeDate(p.startWorkDate),
-        left + colW + colGap,
-        y3,
-        colW,
-      )
-      doc.y = Math.max(yE, yF)
-
-      // Fecha de salida si aplica
-      if (p.isActive === false && p.endWorkDate) {
-        doc.y = this.drawFieldRow(doc, 'Fecha de salida', this.safeDate(p.endWorkDate), left, doc.y, colW)
-      }
-
-      this.addFooter(doc)
-      doc.end()
-    })
-  }
-
-  // ==========================================================
-  // ✅ PDF LISTADO (tabla igual a associates)
-  // ==========================================================
   private addStyledTable(
     doc: PDFDoc,
     columns: Array<{ title: string; w: number; align?: 'left' | 'right' | 'center' }>,
@@ -377,7 +256,7 @@ export class PersonalPdfService {
     const measureRowH = (row: any[]) => {
       doc.font('Helvetica').fontSize(rowFontSize)
       const hs = row.map((cell, i) =>
-        doc.heightOfString(String(cell ?? '—'), {
+        doc.heightOfString(String(cell ?? '---'), {
           width: cols[i].w - 20,
           align: (cols[i].align as any) ?? 'left',
         }),
@@ -435,7 +314,7 @@ export class PersonalPdfService {
 
       doc.font('Helvetica').fontSize(rowFontSize).fillColor(this.UI.table.text)
       row.forEach((cell, i) => {
-        doc.text(String(cell ?? '—'), xs[i] + 10, y + paddingY, {
+        doc.text(String(cell ?? '---'), xs[i] + 10, y + paddingY, {
           width: cols[i].w - 20,
           align: (cols[i].align as any) ?? 'left',
         })
@@ -448,13 +327,107 @@ export class PersonalPdfService {
     doc.y = y + 10
   }
 
-  async generatePersonalListPDF(opts: { people: any[]; filterText?: string }): Promise<Buffer> {
+  async generatePersonalPDF(opts: { person: any }): Promise<Buffer> {
     return new Promise(async (resolve, reject) => {
+      LogoHelper.clearCache()
+      
       let logoBuffer: Buffer | undefined
       try {
-        logoBuffer = await this.downloadLogo()
+        logoBuffer = await LogoHelper.getLogo() || undefined
       } catch (e) {
-        console.warn('⚠️ No se pudo descargar el logo:', e)
+        // mantener silencioso
+      }
+
+      const doc = new PDFDocument({ size: 'A4', layout: 'portrait', margin: 50 })
+      const chunks: Buffer[] = []
+
+      doc.on('data', (c) => chunks.push(c as Buffer))
+      doc.on('end', () => resolve(Buffer.concat(chunks)))
+      doc.on('error', reject)
+
+      const p = this.normalize(opts.person)
+
+      this.addHeader(doc, 'Información del Personal', logoBuffer)
+
+      this.addSectionTitle(doc, '1. INFORMACIÓN PERSONAL')
+
+      const left = 50
+      const right = doc.page.width - 50
+      const avail = right - left
+      const colGap = 18
+      const colW = Math.floor((avail - colGap) / 2)
+
+      // Nombre completo (full)
+      doc.y = this.drawFieldRow(doc, 'Nombre completo', p.fullName, left, doc.y, avail)
+
+      // Cédula / Fecha nacimiento
+      const y1 = doc.y
+      const yA = this.drawFieldRow(doc, 'Cédula', String(p.IDE), left, y1, colW)
+      const yB = this.drawFieldRow(
+        doc,
+        'Fecha de nacimiento',
+        this.safeDate(p.birthDate),
+        left + colW + colGap,
+        y1,
+        colW,
+      )
+      doc.y = Math.max(yA, yB)
+
+      // Teléfono / Email
+      const y2 = doc.y
+      const yC = this.drawFieldRow(doc, 'Teléfono', String(p.phone), left, y2, colW)
+      const yD = this.drawFieldRow(
+        doc,
+        'Correo electrónico',
+        String(p.email),
+        left + colW + colGap,
+        y2,
+        colW,
+      )
+      doc.y = Math.max(yC, yD)
+
+      // Dirección (full)
+      doc.y = this.drawFieldRow(doc, 'Dirección', String(p.direction), left, doc.y, avail)
+
+      doc.moveDown(0.4)
+
+      this.addSectionTitle(doc, '2. INFORMACIÓN LABORAL')
+
+      // Puesto (full)
+      doc.y = this.drawFieldRow(doc, 'Puesto', String(p.occupation), left, doc.y, avail)
+
+      // Estado / Fecha inicio
+      const y3 = doc.y
+      const yE = this.drawFieldRow(doc, 'Estado', String(p.estadoTexto), left, y3, colW)
+      const yF = this.drawFieldRow(
+        doc,
+        'Fecha de inicio laboral',
+        this.safeDate(p.startWorkDate),
+        left + colW + colGap,
+        y3,
+        colW,
+      )
+      doc.y = Math.max(yE, yF)
+
+      // Fecha de salida si aplica
+      if (p.isActive === false && p.endWorkDate) {
+        doc.y = this.drawFieldRow(doc, 'Fecha de salida', this.safeDate(p.endWorkDate), left, doc.y, colW)
+      }
+
+      this.addFooter(doc)
+      doc.end()
+    })
+  }
+
+  async generatePersonalListPDF(opts: { people: any[]; filterText?: string }): Promise<Buffer> {
+    return new Promise(async (resolve, reject) => {
+      LogoHelper.clearCache()
+      
+      let logoBuffer: Buffer | undefined
+      try {
+        logoBuffer = await LogoHelper.getLogo() || undefined
+      } catch (e) {
+        // mantener silencioso
       }
 
       const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 50 })

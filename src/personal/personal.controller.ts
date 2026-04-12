@@ -14,8 +14,8 @@ import { PersonalDto } from './dto/PersonalDto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
-import { PersonalPdfService } from './pdf.service';
 import { PersonalService } from './personal.service';
+import { PersonalPdfService } from './pdf.service';
 
 @Controller('personal')
 @UseGuards(JwtAuthGuard, RolesGuard)

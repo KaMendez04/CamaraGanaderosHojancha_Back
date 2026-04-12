@@ -78,6 +78,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AuditBudgetModule } from './audit/auditBudget/audit-budget.module';
 import { AuditUsersModule } from './audit/auditUsers/audit-users.module';
 import { ManualsModule } from './manuals/manuals.module';
+import { SeedModule } from './seeds/seed.module';
 
 @Module({
   imports: [
@@ -179,7 +180,8 @@ import { ManualsModule } from './manuals/manuals.module';
     InfraestructuraProduccionModule,    
     SolicitudVoluntariadoModule,
     AuditBudgetModule,
-    AuditUsersModule
+    AuditUsersModule,
+    SeedModule
   ],
   controllers: [AppController],
   providers: [

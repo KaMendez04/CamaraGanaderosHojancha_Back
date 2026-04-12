@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import PDFDocument from 'pdfkit'
-import https from 'https'
+import { LogoHelper } from '../../../anualBudget/reportUtils/logo-helper'
 
 type PDFDoc = InstanceType<typeof PDFDocument>
 
@@ -33,23 +33,7 @@ export class VoluntariosListadoPdfService {
     },
   }
 
-  private readonly LOGO_URL =
-    'https://res.cloudinary.com/dyigmavwq/image/upload/v1772546487/jty2ciomldqixzoeh7h0.jpg'
-
   private readonly FOOTER_SPACE = 22
-
-  private async downloadLogo(): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      https
-        .get(this.LOGO_URL, (response) => {
-          const chunks: Buffer[] = []
-          response.on('data', (chunk) => chunks.push(chunk))
-          response.on('end', () => resolve(Buffer.concat(chunks)))
-          response.on('error', reject)
-        })
-        .on('error', reject)
-    })
-  }
 
   private bottom(doc: PDFDoc) {
     return doc.page.height - doc.page.margins.bottom - this.FOOTER_SPACE
@@ -60,20 +44,24 @@ export class VoluntariosListadoPdfService {
     const right = doc.page.width - 50
 
     const headerTop = 32
-    const logoW = 62
-    const gap = 2
+    const logoW = 70
+    const logoH = 42
+    const gap = 0
 
     const titleY = headerTop + 6
     const subY = titleY + 18
     const textBlockH = 10 + 18
 
     const logoX = left
-    const logoY = headerTop + (textBlockH - logoW) / 8 + 10
+    const logoY = headerTop
     const textX = logoBuffer ? logoX + logoW + gap : left
 
     if (logoBuffer) {
       try {
-        doc.image(logoBuffer, logoX, logoY, { width: logoW })
+        doc.image(logoBuffer, logoX, logoY, {
+          fit: [logoW, logoH],
+          valign: 'center',
+        })
       } catch (e) {
         // mantener silencioso como en tus otros servicios
       }
@@ -300,7 +288,7 @@ if (y + rowH > bottom()) {
     return new Promise(async (resolve, reject) => {
       let logoBuffer: Buffer | undefined
       try {
-        logoBuffer = await this.downloadLogo()
+        logoBuffer = await LogoHelper.getLogo() || undefined
       } catch {}
 
       const doc = new PDFDocument({ size: 'LETTER', layout: 'landscape', margin: 50 })
